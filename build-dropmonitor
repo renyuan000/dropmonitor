@@ -2,7 +2,7 @@
 
 . ./prepare
 
-PKGNAME=dropwatch
+PKGNAME=dropmonitor
 
 DIST1=.el6_3.12.6_iso_v1.0
 DIST2=.el6_3.12.6_iso_v1.3

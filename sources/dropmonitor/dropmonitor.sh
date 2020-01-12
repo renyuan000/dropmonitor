@@ -14,7 +14,7 @@
 [ -e /etc/sysconfig/processlist ] && . /etc/sysconfig/processlist
 
 
-PROCNAME=dropwatch
+PROCNAME=dropmonitor
 PROCNAME_PATH=/usr/local/${PROCNAME}/module/${PROCNAME}.ko
 
 RETVAL=0

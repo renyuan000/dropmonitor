@@ -565,7 +565,7 @@ static int __init jprobe_init(void)
 		printk(KERN_INFO "register_jprobe failed, returned %d\n", ret);
 		return -1;
 	}
-	printk(KERN_INFO "Dropwatch: Planted jprobe at %p, handler addr %p\n",
+	printk(KERN_INFO "Dropmonitor: Planted jprobe at %p, handler addr %p\n",
 	       my_jprobe.kp.addr, my_jprobe.entry);
 	return 0;
 }
@@ -573,7 +573,7 @@ static int __init jprobe_init(void)
 static void __exit jprobe_exit(void)
 {
 	unregister_jprobe(&my_jprobe);
-	printk(KERN_INFO "Dropwatch: jprobe at %p unregistered\n", my_jprobe.kp.addr);
+	printk(KERN_INFO "Dropmonitor: jprobe at %p unregistered\n", my_jprobe.kp.addr);
 }
 
 module_init(jprobe_init)

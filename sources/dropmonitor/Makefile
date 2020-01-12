@@ -1,9 +1,9 @@
 # This Makefile can Compile the kernel linux-3.12.6
 
-MODNAME=dropwatch
+MODNAME=dropmonitor
 
 obj-m:=${MODNAME}.o
-dropwatch-objs:=jprobe.o
+${MODNAME}-objs:=jprobe.o
 
 KDIR:=/lib/modules/$(shell uname -r)/build
 DEFE = -Wall -g
@@ -13,7 +13,7 @@ ADDR=$(shell grep -w  __kfree_skb /proc/kallsyms)
 
 all:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
-#	strip --strip-debug tcpspeed.ko
+#	strip --strip-debug ${MODNAME}.ko
 load:
 	insmod $(MODNAME).ko; 
 unload:
