@@ -1,0 +1,59 @@
+#!/bin/sh
+
+# modify your packagename
+export PKGNAME=processlistloadavg
+export VER=1.0
+export BUILDROOT=buildroot
+export SOURCEDIR=sources
+export PATH=/bin/bash:$PATH
+export KERNVER="`uname -r`"
+export DEVEL="`readlink /lib/modules/${KERNVER}/build`"
+
+if [ ! -d buildroot ]; then
+    mkdir -p $BUILDROOT
+    mkdir -p $BUILDROOT/bin
+    mkdir -p $BUILDROOT/dev
+    mkdir -p $BUILDROOT/etc
+    mkdir -p $BUILDROOT/lib
+# renyuan 
+    mkdir -p $BUILDROOT/lib64
+    mkdir -p $BUILDROOT/sbin
+    mkdir -p $BUILDROOT/tmp
+    mkdir -p $BUILDROOT/utils-tmp
+    mkdir -p $BUILDROOT/usr
+    mkdir -p $BUILDROOT/usr/bin
+    mkdir -p $BUILDROOT/usr/sbin
+    mkdir -p $BUILDROOT/usr/share
+    mkdir -p $BUILDROOT/usr/lib
+# renyuan 
+    mkdir -p $BUILDROOT/usr/lib64
+    mkdir -p $BUILDROOT/usr/include
+    mkdir -p $BUILDROOT/usr/libexec
+    mkdir -p $BUILDROOT${DEVEL}
+#    mkdir -p $BUILDROOT/usr/src/renyuan/linux-3.12.6
+    mkdir -p $BUILDROOT/${DEVEL}
+    mkdir -p $BUILDROOT/root/rpmbuild/BUILD
+    mkdir -p $BUILDROOT/root/rpmbuild/SPECS
+    mkdir -p $BUILDROOT/root/rpmbuild/SOURCES
+    mkdir -p $BUILDROOT/root/rpmbuild/RPMS
+    mkdir -p $BUILDROOT/root/rpmbuild/SRPMS
+fi
+
+mount --bind /bin $BUILDROOT/bin
+mount --bind /sbin $BUILDROOT/sbin
+mount --bind /dev $BUILDROOT/dev
+mount --bind /etc $BUILDROOT/etc
+mount --bind /lib $BUILDROOT/lib
+mount --bind /lib64 $BUILDROOT/lib64
+mount --bind /tmp $BUILDROOT/tmp
+mount --bind /usr/bin $BUILDROOT/usr/bin
+mount --bind /usr/sbin $BUILDROOT/usr/sbin
+mount --bind /usr/share $BUILDROOT/usr/share
+mount --bind /usr/lib $BUILDROOT/usr/lib
+mount --bind /usr/lib64 $BUILDROOT/usr/lib64
+mount --bind /usr/include $BUILDROOT/usr/include
+mount --bind /usr/libexec $BUILDROOT/usr/libexec
+mount --bind ${DEVEL}  $BUILDROOT${DEVEL}
+echo mount --bind ${DEVEL}  $BUILDROOT${DEVEL}
+#mount --bind /usr/src/renyuan/linux-3.12.6 $BUILDROOT/usr/src/renyuan/linux-3.12.6
+

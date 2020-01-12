@@ -1,0 +1,234 @@
+#!/usr/bin/stap
+%{
+#include <linux/kernel.h>
+#include <linux/skbuff.h>
+#include <linux/in.h>
+#include <linux/ip.h>
+#include <linux/tcp.h>
+#include <net/sock.h>
+#include <linux/udp.h>
+#include <net/protocol.h>
+#include <net/ip.h>
+#include <net/inetpeer.h>
+#include <net/sock.h>
+#include <net/ip_fib.h>
+#include <net/arp.h>
+#include <net/dst.h>
+#include <net/route.h>
+struct arp_payload {
+	u_int8_t src_hw[ETH_ALEN];
+	__be32 src_ip;
+	u_int8_t dst_hw[ETH_ALEN];
+	__be32 dst_ip;
+} __packed;
+
+%}	
+############################################################
+# Dropwatch.stp
+# Author: Neil Horman <nhorman@redhat.com>
+# An example script to mimic the behavior of the dropwatch utility
+# http://fedorahosted.org/dropwatch
+############################################################
+ 
+# Array to hold the list of drop points we find
+global locations
+ 
+# Note when we turn the monitor on and off
+probe begin { printf("Monitoring for dropped packets\n") }
+probe end { printf("Stopping dropped packet monitor\n") }
+ 
+# increment a drop counter for every location we drop at
+#probe kernel.function("kfree_skb") 
+#{ 
+#  foreach (l in locations-) {
+#    printf("%d packets dropped at %s\n",
+#           @count(locations[l]), symname(l))
+#    if (@count(locations[l]) > 5) {
+#        print_backtrace()
+#    } 
+#  }
+#
+#}
+
+function read_iphdr:long(skb) %{ /* pure */
+    struct iphdr *iph = ip_hdr((struct sk_buff *)STAP_ARG_skb);
+    STAP_RETVALUE = (long)iph;
+%} /* <-- function body */
+
+function read_tcphdr:long(skb) %{ /* pure */
+    struct tcphdr *th = tcp_hdr((struct sk_buff *)STAP_ARG_skb);
+    STAP_RETVALUE = (long)th;
+%} /* <-- function body */
+
+function read_ip6hdr:long(skb) %{
+    struct ipv6hdr *iph = ipv6_hdr((struct sk_buff *)STAP_ARG_skb);
+    STAP_RETVALUE = (long)iph;
+%}
+
+function read_test:long(skb) %{
+    struct iphdr *iph = NULL;
+    STAP_RETVALUE = (long)iph;
+
+%}
+#probe kernel.function("__udp4_lib_mcast_deliver") {
+#    if ($skb != NULL) {
+#        iph = read_iphdr($skb);
+#        th  = read_tcphdr($skb);
+#        if (iph != NULL)
+#            print_tcphdr(iph, th, $skb);
+#    }
+#    iph = read_test($skb);
+#    printf("read_test=%p\n", iph);
+#    if (iph == NULL)
+#        printf("read_test_____________________=%p\n", iph);
+#}
+#======================================================
+function read_arphdr:long(skb) %{ /* pure */
+    struct arphdr *aph = arp_hdr((struct sk_buff *)STAP_ARG_skb);
+    STAP_RETVALUE = (long)aph;
+%} /* <-- function body */
+function read_machdr:long(skb) %{ /* pure */
+    struct ethhdr *hdr = (struct ethhdr *)skb_mac_header((struct sk_buff *)STAP_ARG_skb);
+    STAP_RETVALUE = (long)hdr;
+%} /* <-- function body */
+function print_tcphdr:long(iphdr,tcphdr, skb) {
+    proto    = @cast(skb, "sk_buff")->protocol;
+    daddr    = @cast(iphdr, "iphdr")->daddr;
+    saddr    = @cast(iphdr, "iphdr")->saddr;
+    protocol = @cast(iphdr, "iphdr")->protocol;
+    id       = @cast(iphdr, "iphdr")->id;
+    dest     = @cast(tcphdr, "udphdr")->dest;
+    source   = @cast(tcphdr, "udphdr")->source;
+
+
+    if (proto ==  htons(%{ ETH_P_IP %})) {
+        local_addr = sprintf("%s:%d",ip_ntop((daddr)), ntohs(dest))
+        remote_addr = sprintf("%s:%d",ip_ntop((saddr)) ,ntohs(source))
+	if (protocol == %{IPPROTO_TCP%}) {
+            printf("ipv4_tcp(%d): %d: %s<==%s\n", protocol, ntohs(id), local_addr, remote_addr);
+	} else if (protocol == %{IPPROTO_UDP%}) {
+            printf("ipv4_udp(%d): %d: %s<==%s\n", protocol, ntohs(id), local_addr, remote_addr);
+	} else if (protocol == %{IPPROTO_ICMP%}) {
+            printf("ipv4_icmp(%d): %d: %s<==%s\n", protocol, ntohs(id), local_addr, remote_addr);
+	} else if (protocol == %{IPPROTO_IGMP%}) {
+            printf("ipv4_igmp(%d): %d: %s<==%s\n", protocol, ntohs(id), local_addr, remote_addr);
+	} else {
+            printf("ipv4_unknown(%d): %s<==%s\n", protocol, local_addr, remote_addr);
+	}
+    } else if (proto == htons(%{ ETH_P_ARP %})) {
+	aph = read_arphdr(skb);
+	if (aph != NULL) {
+	    pro = @cast(aph, "arphdr")->ar_pro;
+            printf("arp(%x:%x)\n", ntohs(proto), ntohs(pro));
+	}
+    } else if (proto == htons(%{ ETH_P_RARP %})) {
+	aph = read_arphdr(skb);
+	if (aph != NULL) {
+	    pro = @cast(aph, "arphdr")->ar_pro;
+            printf("rarp(%x:%x)\n", ntohs(proto), ntohs(pro));
+	}
+    } else if (proto == htons(%{ ETH_P_IPV6 %})) {
+	iph = read_ip6hdr(skb);
+	if (iph != NULL) {
+	    pro = @cast(iph, "ipv6hdr")->version;
+            printf("ipv6(%x:%x)\n", ntohs(proto), pro);
+	}
+    } else if ((proto == htons(%{ ETH_P_8021Q %})) || (proto == htons(%{ ETH_P_8021AD %}))) {
+	//
+    } else {
+	hdr = read_machdr(skb);
+	if (hdr != NULL) {
+            printf("unknown(%x:%x)\n", ntohs(proto), ntohs(@cast(hdr, "ethhdr")->h_proto));
+	}
+    }
+
+}
+#probe kernel.function("__mkroute_input") {
+#    if ($skb != NULL) {
+#        printf("%s:", "__mkroute_input");
+#        iph = read_iphdr($skb);
+#        th  = read_tcphdr($skb);
+#        if ((iph != NULL) && (th != NULL))
+#            print_tcphdr(iph, th, $skb);
+#    }
+#}
+
+probe kernel.function("unix_stream_connect") {
+    printf("unix_stream_connect: execname=%s pid=%d uid=%d port=%d localip=%s\n", execname(), pid(), uid(), 
+		    inet_get_local_port($sock),  inet_get_ip_source($sock));
+}
+
+probe kernel.function("unix_release_sock") {
+    printf("unix_release_sock: execname=%s pid=%d uid=%d\n", execname(), pid(), uid());
+#    print_backtrace();
+}
+
+#probe kernel.function("__netif_receive_skb_core").return? {
+#    ret = $return;
+#    if (ret == %{ NET_RX_DROP %}) {
+#        printf("%s:", "__netif_receive_skb_core");
+#        iph = read_iphdr($skb);
+#	th  = read_tcphdr($skb);
+#	if ((iph != NULL) && (th != NULL))
+#            print_tcphdr(iph, th, $skb);
+#    }
+#}
+#======================================================
+function get_rtable:long(skb) %{
+    
+    struct rtable *rt = skb_rtable((struct sk_buff *)STAP_ARG_skb);
+    STAP_RETVALUE = (long)rt;
+%}
+function get_err:long(rtable) {
+   return (&@cast(rtable,"rtable")->dst)->error;
+}
+
+#probe kernel.function("ip_error") {
+#	if ($skb != NULL) {
+#            rt = get_rtable($skb);
+#	    err = get_err(rt);
+#
+#            printf("%s(%d):", "ip_error", err);
+#            iph = read_iphdr($skb);
+#	    th  = read_tcphdr($skb);
+#            print_tcphdr(iph, th, $skb);
+#	}
+#}
+
+probe kernel.function("kfree_skb")
+{
+#print_backtrace();
+}
+#probe kernel.function("consume_skb") 
+#{ 
+#print_backtrace();  
+#    if ($skb != NULL) {
+#    if ($skb != NULL) {
+#printf("count=%d\n", atomic_read(&(@cast("$skb", "sk_buff")->users)));
+#        iph = read_iphdr($skb);
+#        th  = read_tcphdr($skb);
+#        print_tcphdr(iph, th, $skb);
+#    }
+#}
+probe kernel.trace("kfree_skb") 
+{ 
+    locations[$location] <<< 1 
+    if ($skb != NULL) {
+        printf("%s:%s:", $$name, symname($location));
+        iph = read_iphdr($skb);
+        th  = read_tcphdr($skb);
+        print_tcphdr(iph, th, $skb);
+
+    }
+}
+# Every 1 seconds report our drop locations
+probe timer.sec(1)
+{
+  printf("\n")
+  foreach (l in locations-) {
+    printf("%d packets dropped at %s\n",
+           @count(locations[l]), symname(l))
+  }
+  delete locations
+}
+

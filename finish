@@ -1,0 +1,21 @@
+#!/bin/sh
+
+umount $BUILDROOT/bin
+umount $BUILDROOT/sbin
+umount $BUILDROOT/dev
+umount $BUILDROOT/etc
+umount $BUILDROOT/lib
+# renyuan
+umount $BUILDROOT/lib64
+umount $BUILDROOT/tmp
+umount $BUILDROOT/usr/bin
+umount $BUILDROOT/usr/sbin
+umount $BUILDROOT/usr/share
+umount $BUILDROOT/usr/lib
+# renyuan
+umount $BUILDROOT/usr/lib64
+umount $BUILDROOT/usr/include
+umount $BUILDROOT/usr/libexec
+# renyuan
+umount $BUILDROOT/${DEVEL}
+#umount $BUILDROOT/usr/src/renyuan/linux-3.12.6
